@@ -203,7 +203,7 @@ function Parser() {
         this.lexicalParser.source = source;
         
         while( token = this.lexicalParser.getNextToken() ) {
-            console.log(token.toString());
+            //console.log(token.toString());
 
             if(terminalSymbolIndex.hasOwnProperty(token.toString())) {
                 this.syntacticalParser.insertSymbol(new Symbol(token.toString(),token));
@@ -217,19 +217,56 @@ function Parser() {
                     else return false;
                 });
         }
+        context = new Context(); 
         return this.evaluate(this.syntacticalParser.grammarTree);
     }
     
-    function Reference(object,propertyname) {
-        
+    function Reference(base,propertyname) {
+        this.base = base;
+        this.propertyName = propertyname;
     }
-    
+
+    function Context(){
+        this.statusStack = [{}];
+        this.pathStack = []
+        this.resolvePath = function (path) {
+            console.log(this.statusStack);
+            console.log(this.pathStack);
+            var path = path.split("/");
+            if(path[0] == "") {
+                var target = this.statusStack[0];                
+
+            }
+            for(var i = 1;i< path.length; i++) {
+                target = target["_"+path[i]];
+            }
+            if(target.value) 
+                return target.value;
+            else if(target.listener)
+                target.listener.push(new Reference(this.statusStack[this.statusStack.length-2].value,this.pathStack[this.pathStack.length-1]));
+        }
+        this.enter = function (name) {
+            this.pathStack.push(name);
+            if(!this.statusStack[this.statusStack.length-1]["_"+name])
+                this.statusStack[this.statusStack.length-1]["_"+name] ={};
+            this.statusStack.push(this.statusStack[this.statusStack.length-1]["_"+name]);
+        }
+        this.quit = function(){
+            this.pathStack.pop();
+            this.statusStack.pop();
+        }
+        this.register = function (obj) {
+            this.statusStack[this.statusStack.length-1].value = obj;
+        }
+    }
+    var context ;
     this.evaluate = function ( symbol ) {
 
         if(symbol.name == "JSONText")
             return this.evaluate(symbol.childNodes[0]);
-        if(symbol.name == "JSONValue")
+        if(symbol.name == "JSONValue") {
             return this.evaluate(symbol.childNodes[0]);
+        }
         if(symbol.name == "JSONString")
             return symbol.token.toString().replace(/\\(?:([^u])|u([0-9a-fA-F]{4}))/g,function(t,$1,$2){
                 if($2) {
@@ -262,11 +299,13 @@ function Parser() {
         if(symbol.name == "JSONElementList") {
             if( symbol.childNodes[0].name == "JSONElementList" ) {
                 var result = this.evaluate(symbol.childNodes[0]);
+                context.enter(result.length);
                 result.push(this.evaluate(symbol.childNodes[2]));
+                context.quit();
                 return result;
             }
             else {
-                return [this.evaluate(symbol.childNodes[0])];
+                return context.register([this.evaluate(symbol.childNodes[0])]);
             }
         }
         if(symbol.name == "JSONObject") {
@@ -284,13 +323,21 @@ function Parser() {
             }
             else {
                 var result = new Object();
+                context.register(result);
                 with(this.evaluate(symbol.childNodes[0]))
                     result[key]=value;
                 return result;
             }
         }
         if(symbol.name == "JSONMember") {
-            return {key:this.evaluate(symbol.childNodes[0]),value:this.evaluate(symbol.childNodes[2])}
+            var key = this.evaluate(symbol.childNodes[0]);
+            context.enter(key);
+            var value = this.evaluate(symbol.childNodes[2]);
+            context.quit();
+            return {key:key,value:value};
+        }
+        if(symbol.name == "JSONPath") {
+            return context.resolvePath(symbol.token.match(/(?:^path\()([\s\S]*)(?:\)$)/)[1]);
         }
 
     }
