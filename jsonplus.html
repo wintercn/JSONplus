@@ -1,0 +1,11 @@
+﻿<script src="jsonplus.js"></script>
+<textarea id="source">
+{ "a" : 1 ,
+"b" : "a\u0061\taa"
+}
+</textarea>
+
+<script>
+var parser = new Parser();
+console.log(parser.parse(source.value));
+</script>
