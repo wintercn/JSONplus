@@ -61,7 +61,7 @@ function Parser() {
             JSONInputElement:"<JSONPath>|<JSONWhiteSpace>|<JSONString>|<JSONNumber>|<JSONNullLiteral>|<JSONBooleanLiteral>|<JSONPunctuator>",
             JSONWhiteSpace:/[\t\n\r ]+/,
             JSONString:/"(?:[^\"\\\u0000\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*"/,
-            JSONNumber:/-?(?:[1-9][0-9]*|0)(?:.[0-9]+)?(?:[eE][+-]?[0-9]+)?/,
+            JSONNumber:/-?(?:[1-9][0-9]*|0)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/,
             JSONNullLiteral:/null/,
             JSONBooleanLiteral:/true|false/,
             JSONPath:/path\(\.{0,2}(?:\/(?:(?:"(?:[^\"\\\u0000\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*")|[^/]+))+\)/,
@@ -203,7 +203,7 @@ function Parser() {
         this.lexicalParser.source = source;
         
         while( token = this.lexicalParser.getNextToken() ) {
-            //console.log(token);
+            console.log(token.toString());
 
             if(terminalSymbolIndex.hasOwnProperty(token.toString())) {
                 this.syntacticalParser.insertSymbol(new Symbol(token.toString(),token));
@@ -225,8 +225,7 @@ function Parser() {
     }
     
     this.evaluate = function ( symbol ) {
-        if(!symbol) 
-            debugger;
+
         if(symbol.name == "JSONText")
             return this.evaluate(symbol.childNodes[0]);
         if(symbol.name == "JSONValue")
@@ -263,7 +262,7 @@ function Parser() {
         if(symbol.name == "JSONElementList") {
             if( symbol.childNodes[0].name == "JSONElementList" ) {
                 var result = this.evaluate(symbol.childNodes[0]);
-                result.push(this.evaluate(symbol.childNodes[1]));
+                result.push(this.evaluate(symbol.childNodes[2]));
                 return result;
             }
             else {
