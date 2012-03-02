@@ -64,7 +64,7 @@ function Parser() {
             JSONNumber:/-?(?:[1-9][0-9]*|0)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/,
             JSONNullLiteral:/null/,
             JSONBooleanLiteral:/true|false/,
-            JSONPath:/path\(\.{0,2}(?:\/(?:(?:"(?:[^\"\\\u0000\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*")|[^/]+))+\)/,
+            JSONPath:/path\(\.{0,2}(?:\/(?:(?:"(?:[^\"\\\u0000\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*")|[^/]+)|\/)+\)/,
             JSONPunctuator:/[\:\[\]\{\}\,]/
         }
         var jsonInputElement = new XRegExp(lex,"JSONInputElement","g");      
@@ -230,20 +230,48 @@ function Parser() {
         this.statusStack = [{}];
         this.pathStack = []
         this.resolvePath = function (path) {
-            console.log(this.statusStack);
-            console.log(this.pathStack);
             var path = path.split("/");
             if(path[0] == "") {
-                var target = this.statusStack[0];                
+                var target = this.statusStack[0];
+            }
+            if(path[0]=="."){
+                var target = this.statusStack[this.statusStack.length-2];
+            }
+            if(path[0]==".."){                
+                var target = this.statusStack[this.statusStack.length-3];
+                if(!target)
+                    debugger;
+            }
 
-            }
+            var targetStack =[target];
+            
             for(var i = 1;i< path.length; i++) {
+                if(path[i]=="")
+                    continue;
+                if(path[i]==".."){
+                    targetStack.pop();
+                    target = targetStack[targetStack.length-1];
+                    continue;
+                }
+                if(path[i]=="."){
+                    continue;
+                }
+                
+                if(!target["_"+path[i]])
+                    target["_"+path[i]] = {};
+                    
                 target = target["_"+path[i]];
+                targetStack.push(target);
             }
+            
+            
+            
             if(target.value) 
                 return target.value;
             else if(target.listener)
                 target.listener.push(new Reference(this.statusStack[this.statusStack.length-2].value,this.pathStack[this.pathStack.length-1]));
+            else
+                target.listener = [ new Reference(this.statusStack[this.statusStack.length-2].value,this.pathStack[this.pathStack.length-1]) ];
         }
         this.enter = function (name) {
             this.pathStack.push(name);
@@ -257,6 +285,16 @@ function Parser() {
         }
         this.register = function (obj) {
             this.statusStack[this.statusStack.length-1].value = obj;
+            
+            if(this.statusStack[this.statusStack.length-1].listener)
+            {
+                for(var i = 0;i<this.statusStack[this.statusStack.length-1].listener.length;i++)
+                {
+                    with(this.statusStack[this.statusStack.length-1].listener[i])
+                        base[propertyName] = obj;
+                }
+            } 
+           
         }
     }
     var context ;
@@ -265,7 +303,9 @@ function Parser() {
         if(symbol.name == "JSONText")
             return this.evaluate(symbol.childNodes[0]);
         if(symbol.name == "JSONValue") {
-            return this.evaluate(symbol.childNodes[0]);
+            var result = this.evaluate(symbol.childNodes[0]);
+            context.register(result);
+            return result;
         }
         if(symbol.name == "JSONString")
             return symbol.token.toString().replace(/\\(?:([^u])|u([0-9a-fA-F]{4}))/g,function(t,$1,$2){
@@ -305,7 +345,12 @@ function Parser() {
                 return result;
             }
             else {
-                return context.register([this.evaluate(symbol.childNodes[0])]);
+                var result = [];
+                context.register(result);
+                context.enter(result.length);
+                result.push(this.evaluate(symbol.childNodes[0]));
+                context.quit();
+                return result;
             }
         }
         if(symbol.name == "JSONObject") {
