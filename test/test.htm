@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Test for JSONPlus</title>
+    <style>
+        body {
+            font-size: 12px;
+            font-family: monospace;
+            width: 980px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        tr:hover {
+            background: #ff9;
+        }
+        td {
+            padding: 4px 2px;
+            border: 1px solid #393;
+        }
+        .fail {
+            color: red;
+        }
+        .pass {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        var tests = [];
+        function registerTest(chapter, filename,  description, testcase) {
+            tests.push({
+                chapter: chapter,
+                filename: filename,
+                description: description,
+                run: testcase
+            });
+        }
+
+        function runTests() {
+            var log = document.getElementById('result').getElementsByTagName('tbody')[0];
+
+            function logResult(test, result) {
+                var row = document.createElement('tr');
+                var file = document.createElement('td');
+                var desc = document.createElement('td');
+                var output = document.createElement('td');
+
+                file.innerHTML = '<a href="test262/' + test.filename + '" target="_blank">' + test.filename + '</a>';
+                desc.innerHTML = test.description;
+                output.innerHTML = result;
+                output.className = result;
+
+                row.appendChild(file);
+                row.appendChild(desc);
+                row.appendChild(output);
+                log.appendChild(row);
+            }
+
+            for (var i = 0; i < tests.length; i++) {
+                var test = tests[i];
+                var result = test.run();
+                logResult(test, result ? 'pass' : 'fail');
+            }
+        }
+    </script>
+
+    <h1>Test Page</h1>
+    <table id="result">
+        <tbody></tbody>
+    </table>
+
+    <script src="test262/15.12.1.1-0-1.js"></script>
+    <script src="test262/15.12.1.1-0-2.js"></script>
+    <script src="test262/15.12.1.1-0-3.js"></script>
+    <script src="test262/15.12.1.1-0-4.js"></script>
+    <script src="test262/15.12.1.1-0-5.js"></script>
+    <script src="test262/15.12.1.1-0-6.js"></script>
+    <script src="test262/15.12.1.1-0-7.js"></script>
+    <script src="test262/15.12.1.1-0-8.js"></script>
+    <script src="test262/15.12.1.1-0-9.js"></script>
+    <script src="test262/15.12.1.1-g1-1.js"></script>
+    <script src="test262/15.12.1.1-g1-2.js"></script>
+    <script src="test262/15.12.1.1-g1-3.js"></script>
+    <script src="test262/15.12.1.1-g1-4.js"></script>
+    <script src="test262/15.12.1.1-g2-1.js"></script>
+    <script src="test262/15.12.1.1-g2-2.js"></script>
+    <script src="test262/15.12.1.1-g2-3.js"></script>
+    <script src="test262/15.12.1.1-g2-4.js"></script>
+    <script src="test262/15.12.1.1-g2-5.js"></script>
+    <script src="test262/15.12.1.1-g4-1.js"></script>
+    <script src="test262/15.12.1.1-g4-2.js"></script>
+    <script src="test262/15.12.1.1-g4-3.js"></script>
+    <script src="test262/15.12.1.1-g4-4.js"></script>
+    <script src="test262/15.12.1.1-g5-1.js"></script>
+    <script src="test262/15.12.1.1-g5-2.js"></script>
+    <script src="test262/15.12.1.1-g5-3.js"></script>
+    <script src="test262/15.12.1.1-g6-1.js"></script>
+    <script src="test262/15.12.1.1-g6-2.js"></script>
+    <script src="test262/15.12.1.1-g6-3.js"></script>
+    <script src="test262/15.12.1.1-g6-4.js"></script>
+    <script src="test262/15.12.1.1-g6-5.js"></script>
+    <script src="test262/15.12.1.1-g6-6.js"></script>
+    <script src="test262/15.12.1.1-g6-7.js"></script>
+
+    <script src="../jsonplus.js"></script>
+    <script>
+        runTests();
+    </script>
+</body>
+</html>
