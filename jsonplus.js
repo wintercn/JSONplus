@@ -26,9 +26,31 @@ JSONElementList :
 */
 void function() {
 
-function stringifyEx (value) {
+function stringifyEx (value,replacer,space) {
+    
+    var holder = new Object;
+    holder[""] = value;
+    property = "";
+
+    if(typeof replacer == "function") {
+        var replacerFunction = replacer;
+    }
+
+    if(Object.prototype.toString.call(replacer) == "[object Array]")
+    {
+        var propertyIndex = {};
+        for(var i = 0; i<replacer.length; i++) {
+            propertyIndex[replacer] = true;
+        }
+    }
+        
+    if(space && Object.prototype.toString.call(space) == "[object Number]")
+        space = new Array(space+1).join("");
+
+
     var objectStack = [];
     var pathStack = [];
+   
     function serializeObject(v) {
         path = "";
         for(var i = 0; i < objectStack.length; i++) {
@@ -40,33 +62,55 @@ function stringifyEx (value) {
                 path += "/" + pathStack[i];
         }
         objectStack.push(v);
+        holder = v;
         var result = [];
         for(var p in v) {
-            if(v.hasOwnProperty(p)) {
+            property = p;
+            if(v.hasOwnProperty(p) && (!propertyIndex || propertyIndex.hasOwnProperty(p))) {
                 pathStack.push(p);
                 var c = serialize(v[p]);
                 pathStack.pop();
                 if(c!==undefined) {
-                    result.push(serializeString(p)+":"+c);
+                    result.push(serializeString(p)+":"+(space?" ":"")+c);
                 }
             }
         }
+        var indent = Array(objectStack.length+1).join(space);
+        var dedent = Array(objectStack.length).join(space);
         objectStack.pop();
-        return "{"+result.join(",")+"}";         
+        if(!result.length) return "{}";
+        return "{"+(space?"\n"+indent:"")+result.join(","+(space?"\n"+indent:""))+(space?"\n":"")+dedent+"}";         
     }
     function serializeFunction(v) {
         return undefined;
     }
     function serializeArray(v) {
+        path = "";
+        for(var i = 0; i < objectStack.length; i++) {
+            if(objectStack[i]==v) {
+                if(path=="") path ="/";
+                return "path("+path+")";
+            }
+            else
+                path += "/" + pathStack[i];
+        }
+        objectStack.push(v);
+        holder = v;
         var result = [];
+        holder = v;
         for(var i = 0; i < v.length; i++) {
+            property = i;
             var c = serialize(v[i]);
             if(c!==undefined) {
                 result.push(c);
             }
             else result.push(null);
         }
-        return "["+result.join(",")+"]";
+        var indent = Array(objectStack.length+1).join(space);
+        var dedent = Array(objectStack.length).join(space);
+        objectStack.pop();
+        if(!result.length) return "[]";
+        return "["+(space?"\n"+indent:"")+result.join(","+(space?"\n"+indent:""))+(space?"\n":"")+dedent+"]";
     }
     function serializeString(v) {
         return "\""+v.replace(/([\"\\])/g,"\\$1").replace(/[\u0000-\u001F]/g,function(t){
@@ -90,8 +134,12 @@ function stringifyEx (value) {
         return undefined;
     }
     function serialize(v) {
+        if(replacerFunction)
+            v = replacerFunction.call(holder,property,v);
+
         if(typeof v == "object") {
             if(v === null) return "null";
+            if(v.toJSON) return serialize(v.toJSON());
             if(v.constructor == Number) return serializeNumber(v);
             if(v.constructor == String) return serializeString(v);
             if(v.constructor == Boolean) return serializeBoolean(v);
