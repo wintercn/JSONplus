@@ -45,7 +45,7 @@ function stringifyEx (value,replacer,space) {
     }
         
     if(space && Object.prototype.toString.call(space) == "[object Number]")
-        space = new Array(space+1).join("");
+        space = new Array((space+1).toFixed()).join("");
 
 
     var objectStack = [];
