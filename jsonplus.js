@@ -357,7 +357,7 @@ function Parser() {
             if( symbol.childNodes[1].name == "JSONMemberList" ) {
                 return this.evaluate(symbol.childNodes[1]);
             }
-            else return new Array();
+            else return new Object();
         }
         if(symbol.name == "JSONMemberList") {
             if( symbol.childNodes[0].name == "JSONMemberList" ) {
