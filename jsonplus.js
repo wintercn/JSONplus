@@ -26,6 +26,100 @@ JSONElementList :
 */
 void function() {
 
+function stringifyEx (value) {
+    var objectStack = [];
+    var pathStack = [];
+    function serializeObject(v) {
+        path = "";
+        for(var i = 0; i < objectStack.length; i++) {
+            if(objectStack[i]==v) {
+                if(path=="") path ="/";
+                return "path("+path+")";
+            }
+            else
+                path += "/" + pathStack[i];
+        }
+        objectStack.push(v);
+        var result = [];
+        for(var p in v) {
+            if(v.hasOwnProperty(p)) {
+                pathStack.push(p);
+                var c = serialize(v[p]);
+                pathStack.pop();
+                if(c!==undefined) {
+                    result.push(serializeString(p)+":"+c);
+                }
+            }
+        }
+        objectStack.pop();
+        return "{"+result.join(",")+"}";         
+    }
+    function serializeFunction(v) {
+        return undefined;
+    }
+    function serializeArray(v) {
+        var result = [];
+        for(var i = 0; i < v.length; i++) {
+            var c = serialize(v[i]);
+            if(c!==undefined) {
+                result.push(c);
+            }
+            else result.push(null);
+        }
+        return "["+result.join(",")+"]";
+    }
+    function serializeString(v) {
+        return "\""+v.replace(/([\"\\])/g,"\\$1").replace(/[\u0000-\u001F]/g,function(t){
+            var code = t.charCodeAt(0).toString(16);            
+            return "\\u"+Array(5-code.length).join("0")+code; 
+        })+"\"";
+    }
+    function serializeDate(v) {
+        if(v.toJSON)
+            return "\""+v.toJSON()+"\"";
+        else
+            return "\""+v.toISOString()+"\"";
+    }
+    function serializeNumber(v) {
+        return v.toString();
+    }
+    function serializeBoolean(v) {
+        return v.toString();
+    }
+    function serializeUndefined(v) {
+        return undefined;
+    }
+    function serialize(v) {
+        if(typeof v == "object") {
+            if(v === null) return "null";
+            if(v.constructor == Number) return serializeNumber(v);
+            if(v.constructor == String) return serializeString(v);
+            if(v.constructor == Boolean) return serializeBoolean(v);
+            if(v.constructor == Date) return serializeDate(v);
+            if(v.constructor == Array) return serializeArray(v);
+            return serializeObject(v);
+        }
+        else 
+            return {
+                "function":serializeFunction,
+                "string":serializeString,
+                "number":serializeNumber,
+                "boolean":serializeBoolean,
+                "undefined":serializeUndefined
+            }[typeof v](v);
+    }
+    return serialize(value);
+}
+
+if(JSON) 
+    JSON.stringifyEx = stringifyEx;
+else {
+    this.JSON.stringify = function stringif(v){
+        return stringifyEx(v);
+    };
+    this.JSON.stringifyEx  = stringifyEx;
+}
+
 
 function Parser() {
     function LexicalParser() {
@@ -408,15 +502,16 @@ if(JSON)
     JSON.parseEx = function(source){
         return parser.parse(source);
     }
-else
-    this.JSON = {
-        parse:function(source){
-            return parser.parse(source);
-        },
-        parseEx:function(source){
-            return parser.parse(source);
-        }
-    }
+else {
+    this.JSON.parse = function parse(source){
+        return parser.parse(source);
+    };
+    this.JSON.parseEx = function parseEx(source){
+        return parser.parse(source);
+    };
+}
+
+
      
 
 
