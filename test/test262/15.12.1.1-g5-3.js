@@ -4,7 +4,7 @@ registerTest(
     "A JSONStringCharacter UnicodeEscape may not include any non=hex characters",
     function testcase() {
         try {
-            new Parser().parse('"\\u0X50"')
+            JSON.parseEx('"\\u0X50"')
         }
         catch (e) {
             return e.name === 'SyntaxError'

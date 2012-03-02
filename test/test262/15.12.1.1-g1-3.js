@@ -3,9 +3,9 @@ registerTest(
     "15.12.1.1-g1-3.js",
     "The JSON lexical grammar treats <LF> as a whitespace character",
     function testcase() {
-        if (new Parser().parse('\n1234') !== 1234) return false; // <LF> should be ignored
+        if (JSON.parseEx('\n1234') !== 1234) return false; // <LF> should be ignored
         try {
-            new Parser().parse('12\n34'); // <LF> should produce a syntax error as whitespace results in two tokens
+            JSON.parseEx('12\n34'); // <LF> should produce a syntax error as whitespace results in two tokens
         }
         catch (e) {
             if (e.name === 'SyntaxError') return true;

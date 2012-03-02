@@ -24,6 +24,9 @@ JSONElementList :
     JSONValue
     JSONElementList , JSONValue
 */
+void function() {
+
+
 function Parser() {
     function LexicalParser() {
         function XRegExp(xregexps,rootname,flag){
@@ -48,41 +51,38 @@ function Parser() {
                         result[expnames[i]] = matches[i];
                 return result;
             }
-            Object.defineProperty(this,"lastIndex",{
-                "get":function(){
-                    return regexp.lastIndex;
-                }, 
-                "set":function(v){
-                    regexp.lastIndex = v;
-                }
-            });
+            this.setLastIndex = function(v){
+                regexp.lastIndex = v;
+            }
+            this.getLastIndex = function(){
+                return regexp.lastIndex;
+            }
         }
         var lex = {
             JSONInputElement:"<JSONPath>|<JSONWhiteSpace>|<JSONString>|<JSONNumber>|<JSONNullLiteral>|<JSONBooleanLiteral>|<JSONPunctuator>",
             JSONWhiteSpace:/[\t\n\r ]+/,
-            JSONString:/"(?:[^\"\\\u0000\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*"/,
+            JSONString:/"(?:[^\"\\\u0000-\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*"/,
             JSONNumber:/-?(?:[1-9][0-9]*|0)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/,
             JSONNullLiteral:/null/,
             JSONBooleanLiteral:/true|false/,
-            JSONPath:/path\(\.{0,2}(?:\/(?:(?:"(?:[^\"\\\u0000\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*")|[^/]+)|\/)+\)/,
+            JSONPath:/path\(\.{0,2}(?:\/(?:(?:"(?:[^\"\\\u0000-\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*")|[^/]+)|\/)+\)/,
             JSONPunctuator:/[\:\[\]\{\}\,]/
         }
-        var jsonInputElement = new XRegExp(lex,"JSONInputElement","g");      
-        var source;        
-        Object.defineProperty(this,"source",{
-            "get":function(){
-                return source;
-            }, 
-            "set":function(v){
-                source = v;
-                jsonInputElement.lastIndex = 0;
-            }
-        });        
+        var jsonInputElement = new XRegExp(lex,"JSONInputElement","g");
+        var source;
+        this.setSource =function(v){
+            source = v;
+            jsonInputElement.setLastIndex(0);
+        }
+        this.getSource =function(){
+            return source;
+        }
+      
         this.getNextToken = function(){
-            var lastIndex = jsonInputElement.lastIndex;
+            var lastIndex = jsonInputElement.getLastIndex();
             var token = jsonInputElement.exec(source);
 
-            if(token && jsonInputElement.lastIndex-lastIndex > token.length)
+            if(token && jsonInputElement.getLastIndex()-lastIndex > token.length)
             {
                 throw new SyntaxError("Unexpected token ILLEGAL");
             }
@@ -94,48 +94,49 @@ function Parser() {
         ruletext= ruletext.split("\n");
         var rules = {};
         var currentRule ;
-        ruletext.forEach(function(line){
+        for(var i = 0;i<ruletext.length;i++) {
+            var line = ruletext[i];
             if(line.match(/([^ ]+) \:$/)) {        
                 currentRule = rules[RegExp.$1] = [];                
             }
             else {
                 currentRule.push(line.trim().split(" "));
             }
-        });
+        }
         //build the status machine
         var root = {JSONText:"$"};
         var hash = {};
         function visitNode(node) {
             hash[JSON.stringify(node)] = node;            
             node.$closure = true;            
-            var queue = Object.getOwnPropertyNames(node);
+            var queue = [];
+            for(var p in node) 
+                if(node.hasOwnProperty(p))
+                    queue.push(p);
             while(queue.length) {
                 var symbolName = queue.shift();
                 if(!rules[symbolName]) // should be a terminal symbol
                     continue;
-                rules[symbolName].forEach(function(rule){
-                    if(node[symbolName].$lookahead && node[symbolName].$lookahead.some(function(e){return e==rule[0];}) ) 
-                        return;              
+                for(var j = 0;j<rules[symbolName].length;j++) {
+                    rule = rules[symbolName][j];          
                     if(!node[rule[0]])
                         queue.push(rule[0]);
                     var rulenode = node;
                     var lastnode = null;
 
-                    rule.forEach(function(symbol){
 
+                    for(var i = 0 ; i < rule.length; i++) {
+                        symbol= rule[i];
                         if(!rulenode[symbol])
                             rulenode[symbol] = {};
                       
                         lastnode = rulenode;
                         rulenode = rulenode[symbol];
-                    });                        
-                    if(node[symbolName].$lookahead)
-                        node[rule[0]].$lookahead = node[symbolName].$lookahead;
-                    if(node[symbolName].$div)
-                        rulenode.$div = true;
+                    }
+
                     rulenode.$reduce = symbolName;
                     rulenode.$count = rule.length;
-                });
+                }
             }
             for(var p in node) {     
             
@@ -174,8 +175,7 @@ function Parser() {
             symbolStack = [];
             statusStack = [root];
         }
-        Object.defineProperty(this,"grammarTree",{
-            "get":function(){
+        this.getGrammarTree = function(){
                 try {
                     while(current["$reduce"])
                     {
@@ -191,17 +191,16 @@ function Parser() {
                 } catch (e) {
                     throw new SyntaxError("Unexpected end of input");
                 }
-            }
+        }
 
-        });
     }    
     this.lexicalParser = new LexicalParser();   
     this.syntacticalParser = new SyntacticalParser(this.lexicalParser);    
     var terminalSymbols = ["JSONPath","JSONString","JSONNumber","JSONNullLiteral","JSONBooleanLiteral","{","}","[","]",":",","];
-    var terminalSymbolIndex = {};    
-    terminalSymbols.forEach(function(e){
-        Object.defineProperty(terminalSymbolIndex,e,{});
-    });  
+    var terminalSymbolIndex = {};   
+    for(var i = 0; i< terminalSymbols.length; i++)
+        terminalSymbolIndex[terminalSymbols[i]] = undefined;
+  
     function Symbol(symbolName,token) 
     {
         this.name = symbolName;
@@ -212,8 +211,8 @@ function Parser() {
         var token;
         var haveLineTerminator = true;
         
-        this.lexicalParser.source = source;
-        
+        this.lexicalParser.setSource(source);
+        this.syntacticalParser.reset();
         while( token = this.lexicalParser.getNextToken() ) {
             //console.log(token.toString());
             try {
@@ -222,19 +221,17 @@ function Parser() {
                     this.syntacticalParser.insertSymbol(new Symbol(token.toString(),token));
                 }
                 with(this)
-                    Object.getOwnPropertyNames(token).some(function(e){ 
-                        if( terminalSymbolIndex.hasOwnProperty(e) ) {
-                            syntacticalParser.insertSymbol(new Symbol(e,token));
-                            return true;
+                    for(var p in token)
+                        if( terminalSymbolIndex.hasOwnProperty(p) ) {
+                            syntacticalParser.insertSymbol(new Symbol(p,token));
+                            break;
                         }
-                        else return false;
-                    });
             } catch(e) {
                 new SyntaxError("Unexpected token " + token);
             }
         }
         context = new Context(); 
-        return this.evaluate(this.syntacticalParser.grammarTree);
+        return this.evaluate(this.syntacticalParser.getGrammarTree());
     }
     
     function Reference(base,propertyname) {
@@ -404,3 +401,23 @@ function Parser() {
     }
 
 }
+
+var parser = new Parser();
+
+if(JSON) 
+    JSON.parseEx = function(source){
+        return parser.parse(source);
+    }
+else
+    this.JSON = {
+        parse:function(source){
+            return parser.parse(source);
+        },
+        parseEx:function(source){
+            return parser.parse(source);
+        }
+    }
+     
+
+
+}();

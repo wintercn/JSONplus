@@ -4,7 +4,7 @@ registerTest(
     "A JSONStringCharacter UnicodeEscape may not have fewer than 4 hex characters",
     function testcase() {
         try {
-            new Parser().parse('"\\u005"')
+            JSON.parseEx('"\\u005"')
         }
         catch (e) {
             return e.name === 'SyntaxError'

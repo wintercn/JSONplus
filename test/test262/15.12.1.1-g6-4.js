@@ -3,6 +3,6 @@ registerTest(
     "15.12.1.1-g6-4.js",
     "The JSON lexical grammer allows 'f' as a JSONEscapeCharacter after '\' in a JSONString",
     function testcase() {
-        return new Parser().parse('"\\f"') === '\f';
+        return JSON.parseEx('"\\f"') === '\f';
     }
 );

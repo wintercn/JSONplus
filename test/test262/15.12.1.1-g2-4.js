@@ -4,7 +4,7 @@ registerTest(
     "A JSONString must both begin and end with double quotes",
     function testcase() {
         try {
-            if (new Parser().parse('"ab' + "c'") === 'abc') return false;
+            if (JSON.parseEx('"ab' + "c'") === 'abc') return false;
         }
         catch (e) {
             return true;

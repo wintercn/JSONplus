@@ -4,7 +4,7 @@ registerTest(
     "A JSON String may not be delimited by single quotes ",
     function testcase() {
         try {
-            if (new Parser().parse("'abc'") === 'abc') return false;
+            if (JSON.parseEx("'abc'") === 'abc') return false;
         }
         catch (e) {
             return true;
