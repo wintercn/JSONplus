@@ -78,8 +78,15 @@ function Parser() {
                 jsonInputElement.lastIndex = 0;
             }
         });        
-        this.getNextToken = function(useDiv){
-            return jsonInputElement.exec(source);
+        this.getNextToken = function(){
+            var lastIndex = jsonInputElement.lastIndex;
+            var token = jsonInputElement.exec(source);
+
+            if(token && jsonInputElement.lastIndex-lastIndex > token.length)
+            {
+                throw new SyntaxError("Unexpected token ILLEGAL");
+            }
+            return token;
         }
     }
     function SyntacticalParser() {
@@ -169,16 +176,21 @@ function Parser() {
         }
         Object.defineProperty(this,"grammarTree",{
             "get":function(){
-                while(current["$reduce"])
-                {
-                    var count = current["$count"];
-                    var newsymbol = new Symbol(current["$reduce"]);
-                    while(count--) newsymbol.childNodes.push(symbolStack.pop()),statusStack.pop();
-                    current = statusStack[statusStack.length-1];
-                    this.insertSymbol(newsymbol);
+                try {
+                    while(current["$reduce"])
+                    {
+                        var count = current["$count"];
+                        var newsymbol = new Symbol(current["$reduce"]);
+                        while(count--) newsymbol.childNodes.push(symbolStack.pop()),statusStack.pop();
+                        current = statusStack[statusStack.length-1];
+                        this.insertSymbol(newsymbol);
+                    }
+                    if(symbolStack.length!=1)
+                        throw new Error();
+                    return symbolStack[0];
+                } catch (e) {
+                    throw new SyntaxError("Unexpected end of input");
                 }
-            
-                return symbolStack[0];
             }
 
         });
@@ -204,18 +216,22 @@ function Parser() {
         
         while( token = this.lexicalParser.getNextToken() ) {
             //console.log(token.toString());
+            try {
 
-            if(terminalSymbolIndex.hasOwnProperty(token.toString())) {
-                this.syntacticalParser.insertSymbol(new Symbol(token.toString(),token));
+                if(terminalSymbolIndex.hasOwnProperty(token.toString())) {
+                    this.syntacticalParser.insertSymbol(new Symbol(token.toString(),token));
+                }
+                with(this)
+                    Object.getOwnPropertyNames(token).some(function(e){ 
+                        if( terminalSymbolIndex.hasOwnProperty(e) ) {
+                            syntacticalParser.insertSymbol(new Symbol(e,token));
+                            return true;
+                        }
+                        else return false;
+                    });
+            } catch(e) {
+                new SyntaxError("Unexpected token " + token);
             }
-            with(this)
-                Object.getOwnPropertyNames(token).some(function(e){ 
-                    if( terminalSymbolIndex.hasOwnProperty(e) ) {
-                        syntacticalParser.insertSymbol(new Symbol(e,token));
-                        return true;
-                    }
-                    else return false;
-                });
         }
         context = new Context(); 
         return this.evaluate(this.syntacticalParser.grammarTree);
