@@ -44,8 +44,18 @@ function stringifyEx (value,replacer,space) {
         }
     }
         
-    if(space && Object.prototype.toString.call(space) == "[object Number]")
-        space = new Array((space+1).toFixed()).join("");
+    if(space && Object.prototype.toString.call(space) == "[object Number]") {
+        if(space > 10) space = 10;
+
+        if(space < 1) space = "";
+        else space = new Array(Math.floor(space+1)).join(" ");
+    }
+    else if(space && Object.prototype.toString.call(space) == "[object String]") {
+        space = space.substring(0,10);
+    }
+    else {
+        space = "";
+    }
 
 
     var objectStack = [];
