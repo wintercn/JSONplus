@@ -50,9 +50,9 @@ path(/a/name) 表示 根对象.a.name
 ### JSON.stringifyEx(value,replacer,space)
 
 * 参数
-** value ： 表示待序列化的对象或者值。
-** replacer ： 序列化时可以使用replacer来将待序列化对象或者值转换成另外一个对象或者值。
-** space ： 表示为了可读性加入的空白，可以是字符串或者数字，若为数字，则使用这个数量的空格，不能超过10
+    * value ： 表示待序列化的对象或者值。
+    * replacer ： 序列化时可以使用replacer来将待序列化对象或者值转换成另外一个对象或者值。
+    * space ： 表示为了可读性加入的空白，可以是字符串或者数字，若为数字，则使用这个数量的空格，不能超过10
 * 返回值 ： 返回序列化JavaScript对象。
 * 作用：将一个JavaScript对象或者值序列化成JSON字符串，带有循环引用的对象将被序列化为扩展的带有path语法的JSON
 
