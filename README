@@ -37,6 +37,24 @@ path以"/"或者"../","./"开头，以path选取的根对象。
 path的开头之后则是一序列用"/"分隔的属性。如
 path(/a/name) 表示 根对象.a.name
 
+例如以下JSON代码
+
+    {
+        "a":{
+             "name":{}
+        },
+        "b":path(/a/name)
+    }
+得到的根对象b属性将会跟根对象.a.name指向同一对象。
+
+    var obj = JSON.parseEx("{\
+        \"a\":{\
+             \"name\":{}\
+        },\
+        \"b\":path(/a/name)\
+    }");
+    console.log(obj.a.name===obj.b);
+
 ## API参考
 
 ### JSON.parseEx(text)
