@@ -13,7 +13,6 @@ JSONObject :
     { JSONMemberList }
 JSONMember :
     JSONString : JSONValue
-    JSONString : JSONPath
 JSONMemberList :
     JSONMember
     JSONMemberList , JSONMember
@@ -59,27 +58,21 @@ function stringifyEx (value,replacer,space) {
 
 
     var objectStack = [];
-    var pathStack = [];
    
     function serializeObject(v) {
-        path = "";
+
         for(var i = 0; i < objectStack.length; i++) {
             if(objectStack[i]==v) {
-                if(path=="") path ="/";
-                return "path("+path+")";
+                throw new TypeError("Converting circular structure to JSON");
             }
-            else
-                path += "/" + pathStack[i];
         }
         objectStack.push(v);
         holder = v;
         var result = [];
+
         for(var p in v) {
-            property = p;
             if(v.hasOwnProperty(p) && (!propertyIndex || propertyIndex.hasOwnProperty(p))) {
-                pathStack.push(p);
                 var c = serialize(v[p]);
-                pathStack.pop();
                 if(c!==undefined) {
                     result.push(serializeString(p)+":"+(space?" ":"")+c);
                 }
@@ -87,7 +80,9 @@ function stringifyEx (value,replacer,space) {
         }
         var indent = Array(objectStack.length+1).join(space);
         var dedent = Array(objectStack.length).join(space);
+
         objectStack.pop();
+
         if(!result.length) return "{}";
         return "{"+(space?"\n"+indent:"")+result.join(","+(space?"\n"+indent:""))+(space?"\n":"")+dedent+"}";         
     }
@@ -95,19 +90,16 @@ function stringifyEx (value,replacer,space) {
         return undefined;
     }
     function serializeArray(v) {
-        path = "";
+
         for(var i = 0; i < objectStack.length; i++) {
             if(objectStack[i]==v) {
-                if(path=="") path ="/";
-                return "path("+path+")";
+                throw new TypeError("Converting circular structure to JSON");
             }
-            else
-                path += "/" + pathStack[i];
         }
         objectStack.push(v);
+
         holder = v;
         var result = [];
-        holder = v;
         for(var i = 0; i < v.length; i++) {
             property = i;
             var c = serialize(v[i]);
@@ -211,13 +203,12 @@ function Parser() {
             }
         }
         var lex = {
-            JSONInputElement:"<JSONPath>|<JSONWhiteSpace>|<JSONString>|<JSONNumber>|<JSONNullLiteral>|<JSONBooleanLiteral>|<JSONPunctuator>",
+            JSONInputElement:"<JSONWhiteSpace>|<JSONString>|<JSONNumber>|<JSONNullLiteral>|<JSONBooleanLiteral>|<JSONPunctuator>",
             JSONWhiteSpace:/[\t\n\r ]+/,
             JSONString:/"(?:[^\"\\\u0000-\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*"/,
             JSONNumber:/-?(?:[1-9][0-9]*|0)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/,
             JSONNullLiteral:/null/,
             JSONBooleanLiteral:/true|false/,
-            JSONPath:/path\(\.{0,2}(?:\/(?:(?:"(?:[^\"\\\u0000-\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*")|[^/]+)|\/)+\)/,
             JSONPunctuator:/[\:\[\]\{\}\,]/
         }
         var jsonInputElement = new XRegExp(lex,"JSONInputElement","g");
@@ -242,7 +233,7 @@ function Parser() {
         }
     }
     function SyntacticalParser() {
-        var ruletext = "JSONText :\nJSONValue\nJSONValue :\nJSONNullLiteral\nJSONBooleanLiteral\nJSONObject\nJSONArray\nJSONString\nJSONNumber\nJSONObject :\n{ } \n{ JSONMemberList }\nJSONMember :\nJSONString : JSONValue\nJSONString : JSONPath\nJSONMemberList :\nJSONMember\nJSONMemberList , JSONMember\nJSONArray :\n[ ]\n[ JSONElementList ]\nJSONElementList :\nJSONValue\nJSONElementList , JSONValue"
+        var ruletext = "JSONText :\nJSONValue\nJSONValue :\nJSONNullLiteral\nJSONBooleanLiteral\nJSONObject\nJSONArray\nJSONString\nJSONNumber\nJSONObject :\n{ } \n{ JSONMemberList }\nJSONMember :\nJSONString : JSONValue\nJSONMemberList :\nJSONMember\nJSONMemberList , JSONMember\nJSONArray :\n[ ]\n[ JSONElementList ]\nJSONElementList :\nJSONValue\nJSONElementList , JSONValue"
         ruletext= ruletext.split("\n");
         var rules = {};
         var currentRule ;
@@ -348,7 +339,7 @@ function Parser() {
     }    
     this.lexicalParser = new LexicalParser();   
     this.syntacticalParser = new SyntacticalParser(this.lexicalParser);    
-    var terminalSymbols = ["JSONPath","JSONString","JSONNumber","JSONNullLiteral","JSONBooleanLiteral","{","}","[","]",":",","];
+    var terminalSymbols = ["JSONString","JSONNumber","JSONNullLiteral","JSONBooleanLiteral","{","}","[","]",":",","];
     var terminalSymbolIndex = {};   
     for(var i = 0; i< terminalSymbols.length; i++)
         terminalSymbolIndex[terminalSymbols[i]] = undefined;
@@ -382,94 +373,16 @@ function Parser() {
                 new SyntaxError("Unexpected token " + token);
             }
         }
-        context = new Context(); 
         return this.evaluate(this.syntacticalParser.getGrammarTree());
     }
     
-    function Reference(base,propertyname) {
-        this.base = base;
-        this.propertyName = propertyname;
-    }
-
-    function Context(){
-        this.statusStack = [{}];
-        this.pathStack = []
-        this.resolvePath = function (path) {
-            var path = path.split("/");
-            if(path[0] == "") {
-                var target = this.statusStack[0];
-            }
-            if(path[0]=="."){
-                var target = this.statusStack[this.statusStack.length-2];
-            }
-            if(path[0]==".."){                
-                var target = this.statusStack[this.statusStack.length-3];
-                if(!target)
-                    debugger;
-            }
-
-            var targetStack =[target];
-            
-            for(var i = 1;i< path.length; i++) {
-                if(path[i]=="")
-                    continue;
-                if(path[i]==".."){
-                    targetStack.pop();
-                    target = targetStack[targetStack.length-1];
-                    continue;
-                }
-                if(path[i]=="."){
-                    continue;
-                }
-                
-                if(!target["_"+path[i]])
-                    target["_"+path[i]] = {};
-                    
-                target = target["_"+path[i]];
-                targetStack.push(target);
-            }
-            
-            
-            
-            if(target.value) 
-                return target.value;
-            else if(target.listener)
-                target.listener.push(new Reference(this.statusStack[this.statusStack.length-2].value,this.pathStack[this.pathStack.length-1]));
-            else
-                target.listener = [ new Reference(this.statusStack[this.statusStack.length-2].value,this.pathStack[this.pathStack.length-1]) ];
-        }
-        this.enter = function (name) {
-            this.pathStack.push(name);
-            if(!this.statusStack[this.statusStack.length-1]["_"+name])
-                this.statusStack[this.statusStack.length-1]["_"+name] ={};
-            this.statusStack.push(this.statusStack[this.statusStack.length-1]["_"+name]);
-        }
-        this.quit = function(){
-            this.pathStack.pop();
-            this.statusStack.pop();
-        }
-        this.register = function (obj) {
-            this.statusStack[this.statusStack.length-1].value = obj;
-            
-            if(this.statusStack[this.statusStack.length-1].listener)
-            {
-                for(var i = 0;i<this.statusStack[this.statusStack.length-1].listener.length;i++)
-                {
-                    with(this.statusStack[this.statusStack.length-1].listener[i])
-                        base[propertyName] = obj;
-                }
-            } 
-           
-        }
-    }
-    var context ;
+ 
     this.evaluate = function ( symbol ) {
 
         if(symbol.name == "JSONText")
             return this.evaluate(symbol.childNodes[0]);
         if(symbol.name == "JSONValue") {
             var result = this.evaluate(symbol.childNodes[0]);
-            context.register(result);
             return result;
         }
         if(symbol.name == "JSONString")
@@ -504,17 +417,12 @@ function Parser() {
         if(symbol.name == "JSONElementList") {
             if( symbol.childNodes[0].name == "JSONElementList" ) {
                 var result = this.evaluate(symbol.childNodes[0]);
-                context.enter(result.length);
                 result.push(this.evaluate(symbol.childNodes[2]));
-                context.quit();
                 return result;
             }
             else {
                 var result = [];
-                context.register(result);
-                context.enter(result.length);
                 result.push(this.evaluate(symbol.childNodes[0]));
-                context.quit();
                 return result;
             }
         }
@@ -533,7 +441,6 @@ function Parser() {
             }
             else {
                 var result = new Object();
-                context.register(result);
                 with(this.evaluate(symbol.childNodes[0]))
                     result[key]=value;
                 return result;
@@ -541,14 +448,10 @@ function Parser() {
         }
         if(symbol.name == "JSONMember") {
             var key = this.evaluate(symbol.childNodes[0]);
-            context.enter(key);
             var value = this.evaluate(symbol.childNodes[2]);
-            context.quit();
             return {key:key,value:value};
         }
-        if(symbol.name == "JSONPath") {
-            return context.resolvePath(symbol.token.match(/(?:^path\()([\s\S]*)(?:\)$)/)[1]);
-        }
+
 
     }
 
