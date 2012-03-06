@@ -11,9 +11,12 @@ JSONValue :
 JSONObject :
     { } 
     { JSONMemberList }
+    { JSONMemberList , }
 JSONMember :
     JSONString : JSONValue
     JSONString : JSONPath
+    JSONIdentifier : JSONValue
+    JSONIdentifier : JSONPath
 JSONMemberList :
     JSONMember
     JSONMemberList , JSONMember
@@ -22,7 +25,9 @@ JSONArray :
     [ JSONElementList ]
 JSONElementList :
     JSONValue
+    JSONValue ,
     JSONElementList , JSONValue
+    JSONElementList , JSONValue ,
 */
 void function() {
 
@@ -211,13 +216,14 @@ function Parser() {
             }
         }
         var lex = {
-            JSONInputElement:"<JSONPath>|<JSONWhiteSpace>|<JSONString>|<JSONNumber>|<JSONNullLiteral>|<JSONBooleanLiteral>|<JSONPunctuator>",
-            JSONWhiteSpace:/[\t\n\r ]+/,
-            JSONString:/"(?:[^\"\\\u0000-\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*"/,
+            JSONInputElement:"<JSONPath>|<JSONString>|<JSONNumber>|<JSONNullLiteral>|<JSONBooleanLiteral>|<JSONPunctuator>|<JSONIdentifier>|<JSONWhiteSpace>",
+            JSONWhiteSpace:/[\n\r\u2028\u2029\t\v\f\u0020\u00A0\u1680\u180E\u2000-\u200A\u202F\u205f\u3000]+/,
+            JSONString:/"(?:[^\"\\\u0000-\u001F]+|\\[^u]|\\u[0-9a-fA-F]{4})*"|'(?:[^\'\\\u0000-\u001F]+|\\[^u]|\\u[0-9a-fA-F]{4})*'/,
             JSONNumber:/-?(?:[1-9][0-9]*|0)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/,
             JSONNullLiteral:/null/,
             JSONBooleanLiteral:/true|false/,
             JSONPath:/path\(\.{0,2}(?:\/(?:(?:"(?:[^\"\\\u0000-\u001F]+|\\[\"\/\\bfnrt]|\\u[0-9a-fA-F]{4})*")|[^/]+)|\/)+\)/,
+            JSONIdentifier:/[a-zA-Z][0-9a-zA-Z]*/,
             JSONPunctuator:/[\:\[\]\{\}\,]/
         }
         var jsonInputElement = new XRegExp(lex,"JSONInputElement","g");
@@ -242,7 +248,7 @@ function Parser() {
         }
     }
     function SyntacticalParser() {
-        var ruletext = "JSONText :\nJSONValue\nJSONValue :\nJSONNullLiteral\nJSONBooleanLiteral\nJSONObject\nJSONArray\nJSONString\nJSONNumber\nJSONObject :\n{ } \n{ JSONMemberList }\nJSONMember :\nJSONString : JSONValue\nJSONString : JSONPath\nJSONMemberList :\nJSONMember\nJSONMemberList , JSONMember\nJSONArray :\n[ ]\n[ JSONElementList ]\nJSONElementList :\nJSONValue\nJSONElementList , JSONValue"
+        var ruletext = "JSONText :\nJSONValue\nJSONValue :\nJSONNullLiteral\nJSONBooleanLiteral\nJSONObject\nJSONArray\nJSONString\nJSONNumber\nJSONObject :\n{ } \n{ JSONMemberList }\n{ JSONMemberList , }\nJSONMember :\nJSONString : JSONValue\nJSONString : JSONPath\nJSONIdentifier : JSONValue\nJSONIdentifier : JSONPath\nJSONMemberList :\nJSONMember\nJSONMemberList , JSONMember\nJSONArray :\n[ ]\n[ JSONElementList ]\n[ JSONElementList , ]\nJSONElementList :\nJSONValue\nJSONElementList , JSONValue"
         ruletext= ruletext.split("\n");
         var rules = {};
         var currentRule ;
@@ -348,7 +354,7 @@ function Parser() {
     }    
     this.lexicalParser = new LexicalParser();   
     this.syntacticalParser = new SyntacticalParser(this.lexicalParser);    
-    var terminalSymbols = ["JSONPath","JSONString","JSONNumber","JSONNullLiteral","JSONBooleanLiteral","{","}","[","]",":",","];
+    var terminalSymbols = ["JSONPath","JSONString","JSONIdentifier","JSONNumber","JSONNullLiteral","JSONBooleanLiteral","{","}","[","]",":",","];
     var terminalSymbolIndex = {};   
     for(var i = 0; i< terminalSymbols.length; i++)
         terminalSymbolIndex[terminalSymbols[i]] = undefined;
@@ -472,23 +478,43 @@ function Parser() {
             context.register(result);
             return result;
         }
-        if(symbol.name == "JSONString")
-            return symbol.token.toString().replace(/\\(?:([^u])|u([0-9a-fA-F]{4}))/g,function(t,$1,$2){
-                if($2) {
-                    return String.fromCharCode(parseInt("0x"+$2));
-                }
-                
-                var special = {
-                    "\"":"\"",
-                    "b":"\b",
-                    "f":"\f",
-                    "n":"\n",
-                    "r":"\r",
-                    "t":"\t"
-                }[$1];
-                if(special) return special;
-                else return $1;            
-            }).replace(/(^"|"$)/g,"");
+        if(symbol.name == "JSONString") {
+            var str = symbol.token.toString();
+            if(str.charAt(0)=="\"")
+                return str.replace(/\\(?:([^u])|u([0-9a-fA-F]{4}))/g,function(t,$1,$2){
+                    if($2) {
+                        return String.fromCharCode(parseInt("0x"+$2));
+                    }
+                    var special = {
+                        "\"":"\"",
+                        "b":"\b",
+                        "f":"\f",
+                        "n":"\n",
+                        "r":"\r",
+                        "t":"\t"
+                    }[$1];
+                    if(special) return special;
+                    else return $1;            
+                }).replace(/(^"|"$)/g,"");
+            if(str.charAt(0)=="\'")
+                return str.replace(/\\(?:([^u])|u([0-9a-fA-F]{4}))/g,function(t,$1,$2){
+                    if($2) {
+                        return String.fromCharCode(parseInt("0x"+$2));
+                    }
+                    var special = {
+                        "\'":"\'",
+                        "b":"\b",
+                        "f":"\f",
+                        "n":"\n",
+                        "r":"\r",
+                        "t":"\t"
+                    }[$1];
+                    if(special) return special;
+                    else return $1;            
+                }).replace(/(^'|'$)/g,"");
+        }
+        if(symbol.name == "JSONIdentifier")
+            return symbol.token.toString();
         if(symbol.name == "JSONNumber")
             return parseFloat(symbol.token.toString());
         if(symbol.name == "JSONNullLiteral")
@@ -496,8 +522,8 @@ function Parser() {
         if(symbol.name == "JSONBooleanLiteral")
             return {"true":true,"false":false}[symbol.token.toString()];
         if(symbol.name == "JSONArray") {
-            if( symbol.childNodes[1].name == "JSONElementList" ) {
-                return this.evaluate(symbol.childNodes[1]);
+            if( symbol.childNodes[symbol.childNodes.length-2].name == "JSONElementList" ) {
+                return this.evaluate(symbol.childNodes[symbol.childNodes.length-2]);
             }
             else return new Array();
         }
@@ -519,8 +545,8 @@ function Parser() {
             }
         }
         if(symbol.name == "JSONObject") {
-            if( symbol.childNodes[1].name == "JSONMemberList" ) {
-                return this.evaluate(symbol.childNodes[1]);
+            if( symbol.childNodes[symbol.childNodes.length-2].name == "JSONMemberList" ) {
+                return this.evaluate(symbol.childNodes[symbol.childNodes.length-2]);
             }
             else return new Object();
         }
@@ -538,6 +564,9 @@ function Parser() {
                     result[key]=value;
                 return result;
             }
+        }
+        if(symbol.name == "JSONIdentifier") {
+            return symbol.token.toString();
         }
         if(symbol.name == "JSONMember") {
             var key = this.evaluate(symbol.childNodes[0]);
