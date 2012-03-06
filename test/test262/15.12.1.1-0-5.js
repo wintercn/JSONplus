@@ -4,10 +4,10 @@ registerTest(
     "<ZWSPP> is not valid JSON whitespace as specified by the production JSONWhitespace.",
     function testcase() {
         try {
-            JSON.parseEx('\u200b1234'); // should produce a syntax error 
+            JSON.parse('\u200b1234'); // should produce a syntax error 
         }
         catch (e) {
-            return true; // treat any exception as a pass, other tests ensure that JSON.parseEx throws SyntaxError exceptions
+            return true; // treat any exception as a pass, other tests ensure that JSON.parse throws SyntaxError exceptions
         }
     }
 );

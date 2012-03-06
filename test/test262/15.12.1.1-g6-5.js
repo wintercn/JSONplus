@@ -3,6 +3,6 @@ registerTest(
     "15.12.1.1-g6-5.js",
     "The JSON lexical grammer allows 'n' as a JSONEscapeCharacter after '\' in a JSONString",
     function testcase() {
-        return JSON.parseEx('"\\n"') === '\n';
+        return JSON.parse('"\\n"') === '\n';
     }
 );

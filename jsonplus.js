@@ -161,15 +161,13 @@ function stringifyEx (value,replacer,space) {
     return serialize(value);
 }
 
-if(JSON) 
-    JSON.stringifyEx = stringifyEx;
-else {
-    this.JSON.stringify = function stringif(v){
-        return stringifyEx(v);
-    };
-    this.JSON.stringifyEx  = stringifyEx;
+if(!this.JSON) {
+    this.JSON = {};
 }
-
+if(!this.JSON.stringify)
+    this.JSON.stringify = function stringif(value,replacer,space){
+        return stringifyEx.apply(this,arguments);
+    };
 
 function Parser() {
     function LexicalParser() {
@@ -459,21 +457,13 @@ function Parser() {
 
 var parser = new Parser();
 
-if(JSON) 
-    JSON.parseEx = function(source){
-        return parser.parse(source);
-    }
-else {
+if(!this.JSON ) {
+    this.JSON = {};
+}
+
+if(!this.JSON.parse)
     this.JSON.parse = function parse(source){
         return parser.parse(source);
     };
-    this.JSON.parseEx = function parseEx(source){
-        return parser.parse(source);
-    };
-}
-
-
-     
-
 
 }();
